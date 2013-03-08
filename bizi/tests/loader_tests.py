@@ -47,23 +47,15 @@ class StationsRawData2StationsTest(TestCase):
           ]
 
     def test_loader_raw_station_to_station(self):
-        # Testear que un objeto estación raw (diccionario de atributos) se transforma a un objeto de tipo station.
-        #No testear explicitamente el tipo, sino comprobar propiedades. Evitar en el caso de strings comparar la cadena completa.
+        # Testear que un objeto estación raw (diccionario de atributos) se transforma a un objeto de tipo Station.
+        #No testear explicitamente el tipo, sino comprobar propiedades. Evitar en el caso de strings comparar la cadena completa (usar matcher starts_with)
         raw_station = self.data[0]
         station = self.loader._raw_station_to_station(raw_station)
-        self.assertIsNotNone(station)
 
-        assert_that(station, has_property('id', 'bizi-101'))
-        assert_that(station, has_property('address', starts_with('C/')))
-        assert_that(station, has_property('slots_available', 5))
-        assert_that(station, has_property('bikes_available', 15))
 
     def test_loader_raw_stations_to_stations_return_one_element_list(self):
-        # Testear que raw_station_to_Stations devuelve una secuencia de un elemento
+        # Testear que raw_stations_to_stations devuelve una secuencia de un elemento. Usar tanto un matcher de hamcrest como un assertEquals de unittest
         stations = self.loader._raw_stations_to_stations(self.data)
-        assert_that(stations, is_(not_none())) 
-        assert_that(stations, has_length(1))
-        self.assertEquals(1, len(stations))
 
 
 class CachingStationsTest(TestCase):
@@ -73,62 +65,39 @@ class CachingStationsTest(TestCase):
         self.loader = StationsLoader()
 
     def test_get_bizi_stations(self):
-        # testear que la función get_bizi_stations devuelve estaciones si la función load_bizi_stations devuelve estaciones
-        # (test simplemente para practicar con la función patch.object de mock)
-        with patch.object(self.loader, 'load_bizi_stations') as mockedfunc:
-            mockedfunc.return_value = [Station(id="bizi-test", address="Some addr")]
-            res = self.loader.get_bizi_stations() 
-            self.assertIsNotNone(res)
+        # testear que la función get_bizi_stations devuelve estaciones si la función load_bizi_stations devuelve estaciones (mockear esta última
+        # para que devuelva una lista de un objeto Station.
+        # test simplemente para practicar con la función patch.object de mock
+        res = self.loader.get_bizi_stations() 
 
     def test_get_bizi_stations_twice_only_calls_load_once_using_mock(self):
         # testear que si se llama dos veces seguidas a get_bizi_stations, solo se llama una vez a load_bizi_stations.
         # Hacerlo usando un objeto Mock. Usar como argumento de assert_called_once_with ANY.
-        self.loader.load_bizi_stations = MagicMock()
         self.loader.get_bizi_stations(1) 
         self.loader.get_bizi_stations(1) 
-        self.loader.load_bizi_stations.assert_called_once_with(ANY)
 
     def test_get_bizi_stations_twice_only_calls_load_once_using_patch(self):
         # Mismo caso que el anterior, pero Hacerlo usando el context manager patch.object
-        with patch.object(self.loader, 'load_bizi_stations') as mockedfunc:
-            self.loader.get_bizi_stations() 
-            self.loader.get_bizi_stations() 
-            mockedfunc.assert_called_once_with(ANY)
+        self.loader.get_bizi_stations() 
+        self.loader.get_bizi_stations() 
 
     def test_get_bizi_stations_twice_only_calls_load_once_using_hamcrest_matcher_for_arg(self):
         # Mismo caso que el anterior, pero en lugar de usar ANY, utilizar para el argumento un matcher de hamcrest, gracias
         # a la función hamcrest.match_equality
-        with patch.object(self.loader, 'load_bizi_stations') as mockedfunc:
-            self.loader.get_bizi_stations(10) 
-            self.loader.get_bizi_stations(10) 
-            mockedfunc.assert_called_once_with(match_equality(greater_than(1)))
-        
+        self.loader.get_bizi_stations(10) 
+        self.loader.get_bizi_stations(10) 
         
 
     def test_get_bizi_stations_twice_in_5_mins_calls_load_twice(self):
-        # debemos simular el paso del tiempo con patch y comprobar que se ha llamado 2 veces si pasan más de 5 minutos
-        self.loader.load_bizi_stations = MagicMock()
+        # testear que si se llama dos veces a get_bizi_stations, dejando entre llamadas más de n minutos (self.loader.refresh_time),
+        # entonces, se llama dos veces a load_bizi_stations
+        # debemos simular el paso del tiempo con patch sobre time.time
         self.loader.get_bizi_stations() 
-        secs = time.time()
-        with patch('time.time') as t:
-            t.return_value = secs + self.loader.refresh_time + 1
-            self.loader.get_bizi_stations() 
-        assert_that(self.loader.load_bizi_stations.call_count, is_(2))
+        self.loader.get_bizi_stations() 
 
     def test_error_not_raised_on_connection_error(self):
         ## Supongamos que queremos que nuestro servicio no falle aun cuando la fuente de datos falle, siempre que tengamos datos recientes. 
         ## Testear que si la conexión con urllib2 falla, se devuelven datos igualmente. Recordar simular el paso del tiempo como en el anterior caso.
-        with patch("urllib2.urlopen") as urlopenmock:
-            urlopenmock.return_value.read.return_value = '{"response": {"docs":[]}}'
-            self.loader.get_bizi_stations()
-
-        secs = time.time()
-        
-        with patch('time.time') as t:
-            t.return_value = secs + self.loader.refresh_time + 1
-            with patch("urllib2.urlopen", side_effect=Exception):
-                self.loader.get_bizi_stations() 
-
-
-    
+        self.loader.get_bizi_stations()
+        self.loader.get_bizi_stations() 
 
