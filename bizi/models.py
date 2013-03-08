@@ -1,9 +1,9 @@
 from django.db import models
 
-class Bizi(models.Model):
-    id = models.CharField(max_length=1024, primary_key=True)
-    title = models.CharField(max_length=1024)
-    anclajesdisponibles_i = models.IntegerField(default=0)
-    bicisdisponibles_i = models.IntegerField(default=0)
+class Station(models.Model):
+    id = models.CharField(max_length=255, primary_key=True)
+    address = models.CharField(max_length=1024)
+    slots_available = models.IntegerField(default=0)
+    bikes_available = models.IntegerField(default=0)
 
 

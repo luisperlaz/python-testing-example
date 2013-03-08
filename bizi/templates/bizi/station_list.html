@@ -1,0 +1,9 @@
+<h2>Listado de estaciones Bizi</h2>
+
+<ul>
+	{% for station in object_list %}
+	<li>
+		{{ station.id }} - {{ station.address}}
+	</li>
+	{% endfor %}
+</ul>
